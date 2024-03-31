@@ -97,23 +97,44 @@ def tau(f,x,a,k):
 
 def sigma(f,x,a):
     """
-    substitute x by x = a*x in the expression f
+    substitute x by x = x*a in the expression f
 
     INPUT::
     
         "f", a rational function
         "x", a list of varialbes
         "a", a list of numbers    
-
-        
+    
     OUTPUT::
     
         "g", a rational function such that 
-                g(x_1, ..., x_n) = f(a_1*x_1, ..., a_n*x_n)
-         where x = [x_1, ..., x_n], a = [a_1, ..., a_n].
-    """
-    return tau(f, x, a, 1)
+                g(x) = f(x*a).
+        If x = [x_1, ..., x_n] and a = [a_1, ..., a_n] is a list, then 
+            f(x*a) = f(a_1*x_1, ..., a_n*x_n).
+        If x = [x_1, ..., x_n] and a = (a_{i,j})_{n,n} is a matrix, then 
+            f(x*a) = f(\sum_{i=1}^n x_j*a_{j,1}, ..., \sum_{i=1} x_j*a_{j,n}.
 
+    EXAMPLE::
+
+        sage: R.<x1,x2> =  PolynomialRing(QQ)
+        sage: S = R.fraction_field()
+        sage: f = x1^2 + x2
+
+        sage: A = Matrix(QQ, [[1,2], [3,4]])
+        sage: sigma(f, [x1,x2], A)
+        x1^2 + 6*x1*x2 + 9*x2^2 + 2*x1 + 4*x2
+
+        sage: a = [2,3]
+        sage: sigma(f, [x1,x2], a)
+        4*x1^2 + 3*x2
+    """
+    if type(a) == list:
+        return tau(f, x, a, 1)
+    else:
+        self, xx = make_in_multi_fraction_field(f,x, var_name = True)
+        y = vector(xx)*A
+        return self.subs({xx[i]: y[i] for i in range(len(x))}) 
+        
 
 def delta(f,x,a,c):
     """
@@ -1081,9 +1102,9 @@ def is_summable(f_, x_, a, c, *, info = False):
     
     INPUT:: 
     
-        "f", a multivariate rational function over a subfield of QQbar
+        "f", a multivariate rational function over a subfield K of QQbar
         "x", a list of variables
-        "a", a list of nonzero numbers 
+        "a", a list of nonzero numbers
         "c", a nonzero number
         
     OUTPUT::
@@ -1092,7 +1113,26 @@ def is_summable(f_, x_, a, c, *, info = False):
     
     OPTIONAL::
         If "info = True", print some details about summability of a given rational function.
+
+    EXAMPLE::
+        sage: R.<x1,x2> =  PolynomialRing(QQ)
+        sage: S = R.fraction_field()
+        sage: x = [x1,x2]
+        sage: a =[2,3]
+        sage: c = 1
+
+        sage: f = x1^2+x2
+        sage: pair = is_summable(f, x, a, c); pair
+        (True, 1/3*x1^2 + 1/2*x2)
+
+        sage: g = pair[1]
+        sage: f == c*sigma(g, x, a) - g
+        True
     """
+
+    if c == 0 or (0 in a):
+        raise ZeroDivisionError("input number must be nonzero")
+
     #### f should be viewed as a rational function in x_1, ..., x_{n} and x_{n} is the main variable
     f, x = make_main_variable(f_, x_, var_name = True)
     n = len(a)
@@ -1179,8 +1219,8 @@ def additive_decomposition(f_, x_, a, c, *, info = False):
     """
     decompose a given rational function f into 
                     f = c*tau(g) - g  + r
-    where g, r are rational functions such that and f is c*tau-summable if and only if r = 0
-    Here tau(g(x_1, ..., x_n)) = g(a_1*x_1, ..., a_n*x_n) if a = [a_1, ..., a_n] and x = [x_1, ..., x_n], such
+    where g, r are rational functions such that and f is c*tau-summable if and only if r = 0.
+    Here tau(g(x_1, ..., x_n)) = g(a_1*x_1, ..., a_n*x_n) if a = [a_1, ..., a_n] and x = [x_1, ..., x_n].
     
     INPUT:: 
     
@@ -1194,7 +1234,21 @@ def additive_decomposition(f_, x_, a, c, *, info = False):
     
     OPTIONAL::
         If "info = True", print some details about summability of a given rational function.
-        
+
+    EXAMPLE::
+        sage: R.<x1,x2> =  PolynomialRing(QQ)
+        sage: S = R.fraction_field()
+        sage: x = [x1,x2]
+        sage: a =[2,3]
+        sage: c = 1
+
+        sage: f = x1^2+x2
+        sage: pair = additive_decomposition(f, x, a, c); pair
+        (1/3*x1^2, x2/(x2 + x1))
+
+        sage: g,r = pair
+        sage: f == c*sigma(g, x, a) - g + r
+        True
     """
     #### f should be viewed as a rational function in x_1, ..., x_{n} and x_{n} is the main variable
     f, x = make_main_variable(f_, x_, var_name = True)
@@ -1282,3 +1336,178 @@ def additive_decomposition(f_, x_, a, c, *, info = False):
                 g = make_in_multi_fraction_field(g, x)
     return g, r
 
+
+def transition_matrix(A):
+    """
+    given a map sigma on the multivariate rational function field K(x) defined by simga(f(x)) = f(x*A),
+    where K is a number field, x = [x_1, ..., x_n], A = (a_{i,j}) is a matrix in K^{n*n}, compute two matrices P, D 
+    such that 
+    
+        f(x) is sigma-summable in K(x) if and only if f(P*x) is tau-summable in K(x), 
+    
+    where tau(f(x)) = (f(x*D)) and P, D are matirices in K^{n*n} such that A*(P^T) = (P^T)*D and D is digonal.
+    
+    EXAPMLE::
+
+        sage: N.<t> = QQ[]
+        sage: K.<b> = NumberField(t^2 - 5, embedding=QQbar(sqrt(5)))
+        sage: A = matrix(K, [[0,1],[1,1]])
+        sage: P, D = transition_matrix(A); P,D
+        (
+        [           1  1/2*b + 1/2]  [ 1/2*b + 1/2            0]
+        [           1 -1/2*b + 1/2], [           0 -1/2*b + 1/2]
+        )
+    """
+    D, Q = A.eigenmatrix_right()
+    P = Q.transpose()
+    return P, D
+
+
+def transition_map(f, x, Q):
+    """
+    give a multivariate rational function f(x) and a matrix P, compute f(P*x)
+    
+    EXAMPLE::
+        sage: Q = Matrix(QQ, [[1,2], [3,4]])
+        sage: R.<x1,x2> =  PolynomialRing(QQ)
+        sage: f = x1
+        sage: transition_map(f, Q, [x1,x2])
+        x1 + 2*x2
+
+        sage: N.<t> = QQ[]
+        sage: K.<b> = NumberField(t^2 - 5, embedding=QQbar(sqrt(5)))
+        sage: Q = Matrix(K, [[1,1/2*b + 1/2], [1, -1/2*b+1/2]]).inverse()
+        sage: print(Q)
+        [-1/10*b + 1/2  1/10*b + 1/2]
+        [        1/5*b        -1/5*b]
+        sage: R.<x1,x2> =  PolynomialRing(K)
+        sage: S = R.fraction_field()
+        sage: f = x1
+        sage: transition_map(f, Q, [x1,x2])
+        (-1/10*b + 1/2)*x1 + (1/10*b + 1/2)*x2
+    """
+    self, xx = make_in_multi_fraction_field(f,x, var_name = True)
+    y = Q*vector(xx)
+    return self.subs({xx[i]: y[i] for i in range(len(x))}) 
+
+
+def is_summable2(F, x, A, c, *, info = False):
+    """
+    decide whether a given rational function F is c*sigma-summable or not, i.e., whether there exists another 
+    rational function G such that 
+                    F = c*sigma(G) - G
+    where sigma(G(x)) = G(x*A).
+    
+    INPUT:: 
+    
+        "F", a multivariate rational function over a subfield K of QQbar
+        "x", a list of variables
+        "A", a matrix over K
+        "c", a nonzero number in K
+        
+    OUTPUT::
+        "True, g",  if F = c*tau(g) - g for some ratonal function g, i.e. F is c*sigma-summable
+        "False",  if F is not c*sigma-summable
+    
+    OPTIONAL::
+        If "info = True", print some details about summability of a given rational function.
+
+    WARNING::
+        If A is a diagonable invertible matrix over K, this function can decide the summability of F.
+        Otherwise, this function can NOT decide the summability of F and exports an error.
+
+    EXAMPLE::
+    sage: R.<x1,x2> =  PolynomialRing(QQ)
+    sage: S = R.fraction_field()
+    sage: A = matrix(QQ, [[0,1],[2,1]])
+    sage: x = [x1,x2]
+    sage: c = 1
+
+    sage: F = x1/(x2*(x1+x2)) 
+    sage: pair = is_summable2(F, x, A, c); pair
+    (True, ((1/2*b - 5/2))/((-1/2*b + 5/2)*x2))
+
+    ## verify is_summable2
+    sage: G = pair[1]
+    sage: F == c*sigma(G, x, A) - G
+    True
+
+    """
+    if A.is_invertible() == False:
+        raise ZeroDivisionError("input matrix must be nonsingular")
+    elif A.is_diagonalizable() == False:
+        raise ZeroDivisionError("input matrix must be diagonalizable")
+    else:
+        P, D = transition_matrix(A)
+        Q = P.inverse()
+        a = D.diagonal() # D is the diagonalization of A
+        f = transition_map(F, x, Q); # f(x) = F(P*x)
+
+        ## F(x) is sigma-summable if and only if f is tau-summable, 
+        ## where sigma(F(x)) = F(x*A) and tau(f(x)) = f(x*D)
+        pair = is_summable(f, x, a, c, info = info)
+        if pair == False:
+            return False
+        else:
+            g = pair[1]
+            G = transition_map(g, x, P)
+            return True, G
+
+
+def additive_decomposition2(F, x, A, c, *, info = False):
+    """
+    decompose a given rational function F into 
+                    F = c*sigma(G) - G  + R
+    where G, R are rational functions such that and F is c*sigma-summable if and only if R = 0
+    Here sigma(G(x)) = G(x*A).
+   
+    INPUT:: 
+    
+        "F", a multivariate rational function over a subfield K of QQbar
+        "x", a list of variables
+        "A", a matrix over K
+        "c", a nonzero number in K
+        
+    OUTPUT::
+        "G, R", two rational functions such that F = c*sigma(G) - G + R and F is c*sigma-summable if and only if R = 0
+    
+    OPTIONAL::
+        If "info = True", print some details about summability of a given rational function.
+
+    WARNING::
+        If A is a diagonable invertible matrix over K, this function can decide the summability of F.
+        Otherwise, this function can NOT decide the summability of F and exports an error.
+
+    EXAMPLE::
+    sage: R.<x1,x2> =  PolynomialRing(QQ)
+    sage: S = R.fraction_field()
+    sage: A = matrix(QQ, [[0,1],[2,1]])
+    sage: x = [x1,x2]
+    sage: c = 1
+
+    sage: F = x1^2/(x2*(x1+x2)) 
+    sage: G, R = additive_decomposition2(F, x, A, c);G,R
+    ((-3/2*x1 - 3*x2)/(-3*x2), (-9/2*x1 + 3*x2)/(-3*x2))
+    
+    ## verify additive_decomposition2
+    sage: F == c*sigma(G, x, A) - G + R
+    True
+
+    """
+    if A.is_invertible() == False:
+        raise ZeroDivisionError("input matrix must be nonsingular")
+    elif A.is_diagonalizable() == False:
+        raise ZeroDivisionError("input matrix must be diagonalizable")
+    else:
+        P, D = transition_matrix(A)
+        Q = P.inverse()
+        a = D.diagonal() # D is the diagonalization of A
+        f = transition_map(F, x, Q); # f(x) = F(P*x)
+
+        ## F(x) is sigma-summable if and only if f is tau-summable, 
+        ## where sigma(F(x)) = F(x*A) and tau(f(x)) = f(x*D)
+        g, r = additive_decomposition(f, x, a, c, info = info)
+        G = transition_map(g, x, P)
+        R = transition_map(r, x, P)
+        return G, R
+    
