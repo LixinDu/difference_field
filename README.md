@@ -1,2 +1,2 @@
 # difference_field
-A SageMath package for summation in multivariate difference field
+A SageMath package for summation in a multivariate difference field
