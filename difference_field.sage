@@ -1185,7 +1185,7 @@ def is_summable(f_, x_, a, c, *, info = False):
         if k == 0:
             ### if Gd is a trivial group, then num/d^e is c*tau-summable iff num = 0
             if info:
-                print(" case 2: ", num/d^e, "is not ", c,"*tau-summable, where tau is represented by a =", a)
+                print(" case 2: ", num/d^e, "is not ", c,"*tau-summable, where tau is represented by a =", a, "\n")
             return False
         else: # k > 0
             cc = c^k * mu^(-e) 
@@ -1283,7 +1283,7 @@ def additive_decomposition(f_, x_, a, c, *, info = False):
                     q_i = p_i/(c*a_n^i-1)
                 else:
                     if info:
-                        print(" case 1: ", p_i*x_n^i, "is not ", c,"*tau-summable, where tau is represented by a =", a)
+                        print(" case 1: ", p_i*x_n^i, "is not ", c,"*tau-summable, where tau is represented by a =", a, "\n")
                     #flag = False
                     q_i = 0
                     r = r + p_i * x_n^i
@@ -1303,7 +1303,7 @@ def additive_decomposition(f_, x_, a, c, *, info = False):
         if k == 0:
             ### if Gd is a trivial group, then num/d^e is c*tau-summable iff num = 0
             if info:
-                print(" case 2: ", num/d^e, "is not ", c,"*tau-summable, where tau is represented by a =", a)
+                print(" case 2: ", num/d^e, "is not ", c,"*tau-summable, where tau is represented by a =", a, "\n")
             #flag = False
             r = r + num/d^e
         else: # k > 0
@@ -1443,25 +1443,25 @@ def is_summable2(F, x, A, c, *, info = False):
         a = D.diagonal() # D is the diagonalization of A
         if info:
             print("Difference isomorphism defined by:")
-            print(Q)
+            print(Q, "\n")
             print("Diagonal of Jordan normal form of the input matrix:")
-            print(a)
+            print(a, "\n")
         f = transition_map(F, x, Q); # f(x) = F(P*x)
         if info:
             print("After the difference isomorphism, consider the summability of ")
-            print(f)
+            print(f, "\n")
 
         ## F(x) is sigma-summable if and only if f is tau-summable, 
         ## where sigma(F(x)) = F(x*A) and tau(f(x)) = f(x*D)
         pair = is_summable(f, x, a, c, info = info)
         if pair == False:
-            print(" Not summable")
+            print("Not summable", "\n")
             return False
         else:
             g = pair[1]
             if info:
-                print(" Summbale with a certificate:")
-                print(g)
+                print("Summbale with a certificate:")
+                print(g, "\n")
             G = transition_map(g, x, P)
             return True, G
 
